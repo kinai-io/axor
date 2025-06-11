@@ -2,5 +2,12 @@
 name = "axor-web"
 version = "0.1.0"
 edition = "2021"
+description = "HTTP runtime for the Axor framework, powered by Axum. Instantly expose agent operations over the web."
+license = "MIT"
+authors = ["riana <riana@kinai.io>"]
+repository = "https://github.com/kinai-io/axor"
+keywords = ["framework", "http", "rpc", "agent", "axum"]
+categories = ["web-programming", "network-programming", "development-tools"]
+readme = "../../README.md"
 
 [dependencies]
