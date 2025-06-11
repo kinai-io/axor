@@ -2,5 +2,12 @@
 name = "axor"
 version = "0.1.0"
 edition = "2021"
+description = "Core of the Axor framework: agent-based business logic with typed operations and injection."
+license = "MIT"
+authors = ["riana <riana@kinai.io>"]
+repository = "https://github.com/kinai-io/axor"
+keywords = ["framework", "rust", "agent", "di", "backend"]
+categories = ["web-programming", "development-tools::build-utils"]
+readme = "../../README.md"
 
 [dependencies]
