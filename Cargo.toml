@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "crates/axor", "crates/axor-web",
+    #"crates/axor-web",
+    # "crates/axor-tauri",
+    # "crates/axor-cli",
+    # "crates/axor-doc",
+]
+
+resolver = "2"
