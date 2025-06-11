@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/axor", "crates/axor-web",
+    "crates/axor", "crates/axor-macros", "crates/axor-web",
     #"crates/axor-web",
     # "crates/axor-tauri",
     # "crates/axor-cli",
