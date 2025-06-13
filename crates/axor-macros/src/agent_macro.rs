@@ -1,6 +1,9 @@
 use proc_macro::TokenStream;
-use quote::{quote};
-use syn::{parse_macro_input, Attribute, Fields, ItemStruct, ItemImpl, Type, TypePath};
+use quote::{quote, ToTokens};
+use syn::{
+    parse_macro_input, Attribute, Fields, FnArg, ItemImpl, ItemStruct, PatType, ReturnType, Type,
+    TypePath,
+};
 
 pub fn mark_agent_struct(input: TokenStream) -> TokenStream {
     let s = parse_macro_input!(input as ItemStruct);
@@ -9,19 +12,25 @@ pub fn mark_agent_struct(input: TokenStream) -> TokenStream {
     // Adds #[derive(Default)] if not present
     let mut struct_with_default = s.clone();
     if !has_default_derive(&s.attrs) {
-        struct_with_default.attrs.push(syn::parse_quote!(#[derive(Default)]));
+        struct_with_default
+            .attrs
+            .push(syn::parse_quote!(#[derive(Default)]));
     }
 
     // generates injections calls self.<field>.from_context(...)
     let injections = if let Fields::Named(fields_named) = &s.fields {
-        fields_named.named.iter().filter_map(|field| {
-            let ident = field.ident.as_ref()?;
-            if is_inject_type(&field.ty) {
-                Some(quote! { self.#ident.from_context(context); })
-            } else {
-                None
-            }
-        }).collect::<Vec<_>>()
+        fields_named
+            .named
+            .iter()
+            .filter_map(|field| {
+                let ident = field.ident.as_ref()?;
+                if is_inject_type(&field.ty) {
+                    Some(quote! { self.#ident.from_context(context); })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
     } else {
         vec![]
     };
@@ -51,6 +60,81 @@ pub fn expand_agent_impl(input: TokenStream) -> TokenStream {
     } else {
         panic!("#[agent_impl] must be used on an impl of a struct");
     };
+    let mut match_arms = Vec::new();
+    let mut op_names = Vec::new();
+
+    for item in &item_impl.items {
+        if let syn::ImplItem::Fn(method) = item {
+            if !has_operation_attr(&method.attrs) {
+                continue;
+            }
+
+            let ident = &method.sig.ident;
+            let op_name = ident.to_string();
+            op_names.push(op_name.clone());
+
+            let inputs: Vec<_> = method.sig.inputs.iter().skip(1).collect(); // skip &self
+            eprintln!(
+                "→ Found #[operation] method: {} (args: {})",
+                ident,
+                inputs.len()
+            );
+            let (arg_decl, call_expr) = match inputs.len() {
+                0 => (quote! {}, quote! { self.#ident() }),
+                1 => {
+                    let ty = match &inputs[0] {
+                        FnArg::Typed(PatType { ty, .. }) => ty,
+                        _ => continue,
+                    };
+                    (
+                        quote! {
+                            let arg0: #ty = match payload.input_as() {
+                                Some(val) => val,
+                                None => return crate::InvokeResult {
+                                    operation: #op_name.into(),
+                                    success: false,
+                                    data: None,
+                                }
+                            };
+                        },
+                        quote! { self.#ident(arg0) },
+                    )
+                }
+                _ => continue, // trop de paramètres
+            };
+
+            let has_return = !matches!(method.sig.output, ReturnType::Default);
+
+            let match_arm = if has_return {
+                quote! {
+                    #op_name => {
+                        #arg_decl
+                        let result = #call_expr;
+                        let data = serde_json::to_value(result).ok();
+                        crate::InvokeResult {
+                            operation: #op_name.into(),
+                            success: true,
+                            data,
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    #op_name => {
+                        #arg_decl
+                        #call_expr;
+                        crate::InvokeResult {
+                            operation: #op_name.into(),
+                            success: true,
+                            data: None,
+                        }
+                    }
+                }
+            };
+
+            match_arms.push(match_arm);
+        }
+    }
 
     let gen = quote! {
         #item_impl
@@ -61,7 +145,9 @@ pub fn expand_agent_impl(input: TokenStream) -> TokenStream {
             }
 
             fn operations(&self) -> Vec<crate::OperationDescriptor> {
-                vec![] // will be filled later
+                vec![
+                    #( crate::OperationDescriptor { name: #op_names } ),*
+                ]
             }
 
             fn inject_dependencies(&self, context: &crate::AxorContext) {
@@ -69,10 +155,14 @@ pub fn expand_agent_impl(input: TokenStream) -> TokenStream {
             }
 
             fn call_operation(&self, payload: &crate::Payload) -> crate::InvokeResult {
-                InvokeResult {
-                    operation: payload.name.to_string(),
-                    success: false,
-                    data: None,
+                println!("Operation name : {}", payload.op_name_unchecked());
+                match payload.op_name_unchecked() {
+                    #(#match_arms,)*
+                    _ => crate::InvokeResult {
+                        operation: payload.name.to_string(),
+                        success: false,
+                        data: None,
+                    }
                 }
             }
         }
@@ -87,8 +177,10 @@ fn has_default_derive(attrs: &[Attribute]) -> bool {
     for attr in attrs {
         if attr.path().is_ident("derive") {
             let Ok(meta_list) = attr.parse_args_with(
-                syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated
-            ) else { continue };
+                syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+            ) else {
+                continue;
+            };
             if meta_list.iter().any(|p| p.is_ident("Default")) {
                 return true;
             }
@@ -97,9 +189,16 @@ fn has_default_derive(attrs: &[Attribute]) -> bool {
     false
 }
 
+fn has_operation_attr(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|attr| attr.path().is_ident("operation"))
+}
+
 fn is_inject_type(ty: &Type) -> bool {
     if let Type::Path(TypePath { path, .. }) = ty {
-        path.segments.first().map(|seg| seg.ident == "Inject").unwrap_or(false)
+        path.segments
+            .first()
+            .map(|seg| seg.ident == "Inject")
+            .unwrap_or(false)
     } else {
         false
     }
