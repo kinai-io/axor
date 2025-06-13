@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use axor::{Agent, AxorContext, Inject, InvokeResult, OperationDescriptor, Payload};
-use axor_macros::{agent, agent_impl, operation};
+use axor::prelude::*;
 
 #[agent]
 struct HelloAgent {
@@ -86,7 +85,6 @@ fn hello_with_macros() {
     context.init();
 
     // Direct invocation with type safety
-    // Direct invocation with type safety
     let agent = context.resolve::<PrintAgent>();
     let _ = agent.print_message("Hello world".to_string());
 
@@ -112,5 +110,6 @@ fn hello_with_macros() {
 
     let manifest = context.manifest();
     let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
+    println!("=== AXOR MANIFEST ===");
     println!("{}", manifest_json);
 }

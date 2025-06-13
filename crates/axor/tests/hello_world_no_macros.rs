@@ -77,7 +77,7 @@ impl Agent for PrintAgent {
 
     fn operations(&self) -> Vec<crate::OperationDescriptor> {
         vec![OperationDescriptor {
-            name: "prinln_message",
+            name: "print_message",
         }]
     }
     fn inject_dependencies(&self, _context: &AxorContext) {}
@@ -146,7 +146,7 @@ impl Agent for WorkflowAgent {
 
     fn call_operation(&self, payload: &crate::Payload) -> InvokeResult {
         let return_value = match payload.op_name_unchecked() {
-            "hello" => {
+            "run" => {
                 let res = self.run();
                 let json_data = serde_json::to_value(res).expect("Response Serialization Error");
                 Some(json_data)
