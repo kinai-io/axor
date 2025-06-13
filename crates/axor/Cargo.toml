@@ -8,7 +8,7 @@ authors = ["riana <riana@kinai.io>"]
 repository = "https://github.com/kinai-io/axor"
 keywords = ["framework", "rust", "agent", "di", "backend"]
 categories = ["web-programming", "development-tools::build-utils"]
-readme = "../../README.md"
+readme = "./README.md"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
