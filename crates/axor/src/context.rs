@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::{Agent, InvokeResult, Payload};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
@@ -92,6 +94,34 @@ impl AxorContext {
             success: false,
         }
     }
+
+    pub fn manifest(&self) -> AxorManifest {
+        let agents = self.agents.read().unwrap();
+        let mut list = Vec::new();
+
+        for agent in agents.values() {
+            let name = agent.name();
+            let ops = agent.operations().into_iter().map(|op| op.name.to_string()).collect();
+            list.push(AgentManifest {
+                name: name.to_string(),
+                operations: ops,
+            });
+        }
+
+        AxorManifest { agents: list }
+    }
+
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AxorManifest {
+    pub agents: Vec<AgentManifest>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AgentManifest {
+    pub name: String,
+    pub operations: Vec<String>,
 }
 
 pub trait DowncastArc: Any + Send + Sync {

@@ -155,7 +155,7 @@ pub fn expand_agent_impl(input: TokenStream) -> TokenStream {
             }
 
             fn call_operation(&self, payload: &crate::Payload) -> crate::InvokeResult {
-                println!("Operation name : {}", payload.op_name_unchecked());
+                // println!("Operation name : {}", payload.op_name_unchecked());
                 match payload.op_name_unchecked() {
                     #(#match_arms,)*
                     _ => crate::InvokeResult {
