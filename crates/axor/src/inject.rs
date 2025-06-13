@@ -25,18 +25,11 @@ impl<T> Inject<T> {
     }
 
     /// Framework usage only
-    pub fn inject(&self, value: Arc<T>) {
-        *self.inner.write().unwrap() = Some(value);
-    }
-
-    /// Framework usage only
-    pub fn resolve_service(&self, ctx: &AxorContext)
+    pub fn from_context(&self, context: &AxorContext)
     where
         T: Send + Sync + 'static,
     {
-        let service = ctx
-            .get_service::<T>()
-            .expect(&format!("Missing service: {}", std::any::type_name::<T>()));
-        self.inject(service);
+        let service = context.resolve::<T>();
+         *self.inner.write().unwrap() = Some(service);
     }
 }

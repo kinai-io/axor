@@ -17,8 +17,18 @@ impl AxorContext {
     }
 
     pub fn register<T: Agent + 'static>(&self, agent: T) {
-        let mut map = self.agents.write().unwrap();
-        map.insert(TypeId::of::<T>(), Arc::new(agent));
+        let agent_arc: Arc<T> = Arc::new(agent);
+        let agent_dyn: Arc<dyn Agent> = agent_arc.clone();
+        let service_dyn: Arc<dyn Any + Send + Sync> = agent_arc;
+
+        self.agents
+            .write()
+            .unwrap()
+            .insert(TypeId::of::<T>(), agent_dyn);
+        self.services
+            .write()
+            .unwrap()
+            .insert(TypeId::of::<T>(), service_dyn);
     }
 
     pub fn get<T: Agent + 'static>(&self) -> Option<Arc<T>> {
@@ -37,8 +47,14 @@ impl AxorContext {
         map.get(&TypeId::of::<T>())?.clone().downcast::<T>().ok()
     }
 
-    pub fn resolve<T: Agent + 'static>(&self) -> Arc<T> {
-        self.get::<T>().expect("Agent not found in AxorContext")
+    pub fn resolve<T: Send + Sync + 'static>(&self) -> Arc<T> {
+        let map = self.services.read().unwrap();
+        let service = map
+            .get(&TypeId::of::<T>())
+            .expect("Service not found")
+            .clone();
+
+        downcast_arc::<T>(service).expect("Type mismatch when downcasting service")
     }
 
     pub fn init(&self) {
@@ -66,11 +82,7 @@ impl AxorContext {
             if agent.name() == agent_name {
                 if payload.op_name().is_some() {
                     let result = agent.call_operation(&payload);
-                    return InvokeResult {
-                        operation: payload.name.to_string(),
-                        data: result,
-                        success: true,
-                    };
+                    return result;
                 }
             }
         }
@@ -79,5 +91,25 @@ impl AxorContext {
             data: None,
             success: false,
         }
+    }
+}
+
+pub trait DowncastArc: Any + Send + Sync {
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync>;
+}
+
+impl<T: Any + Send + Sync> DowncastArc for T {
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        self
+    }
+}
+
+pub fn downcast_arc<T: Any + Send + Sync>(arc: Arc<dyn Any + Send + Sync>) -> Result<Arc<T>, Arc<dyn Any + Send + Sync>> {
+    if arc.is::<T>() {
+        // SAFETY: verified via is::<T>()
+        let ptr = Arc::into_raw(arc) as *const T;
+        unsafe { Ok(Arc::from_raw(ptr)) }
+    } else {
+        Err(arc)
     }
 }

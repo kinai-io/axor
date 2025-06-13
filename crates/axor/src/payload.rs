@@ -44,10 +44,3 @@ impl Payload {
         self.op_name().expect("Operation name not defined")
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InvokeResult {
-    pub operation: String,
-    pub success: bool,
-    pub data: Option<Value>,
-}

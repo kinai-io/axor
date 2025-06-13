@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use axor::{Agent, AxorContext, Inject, OperationDescriptor, Payload};
-use serde_json::Value;
+use axor::{Agent, AxorContext, Inject, InvokeResult, OperationDescriptor, Payload};
 
 #[derive(Default)]
 struct HelloAgent {
@@ -35,19 +34,30 @@ impl Agent for HelloAgent {
     }
 
     fn inject_dependencies(&self, context: &AxorContext) {
-        self.logger.resolve_service(context);
-        self.console_logger.resolve_service(context);
+        self.logger.from_context(context);
+        self.console_logger.from_context(context);
         // self.logger.inject(logger);
     }
 
-    fn call_operation(&self, payload: &crate::Payload) -> Option<Value> {
-        match payload.op_name_unchecked() {
+    fn call_operation(&self, payload: &crate::Payload) -> InvokeResult {
+        let return_value = match payload.op_name_unchecked() {
             "hello" => {
                 let res = self.hello();
                 let json_data = serde_json::to_value(res).expect("Response Serialization Error");
                 Some(json_data)
             }
-            _ => None,
+            _ => {
+                return InvokeResult {
+                    operation: payload.name.to_string(),
+                    success: true,
+                    data: None,
+                }
+            }
+        };
+        InvokeResult {
+            operation: payload.name.to_string(),
+            success: true,
+            data: return_value,
         }
     }
 }
@@ -72,14 +82,34 @@ impl Agent for PrintAgent {
     }
     fn inject_dependencies(&self, _context: &AxorContext) {}
 
-    fn call_operation(&self, payload: &crate::Payload) -> Option<Value> {
-        match payload.op_name_unchecked() {
+    fn call_operation(&self, payload: &crate::Payload) -> InvokeResult {
+        let return_value = match payload.op_name_unchecked() {
             "print_message" => {
-                let message: String = payload.input_as()?;
+                let message: String = match payload.input_as() {
+                    Some(input) => input,
+                    None => {
+                        return InvokeResult {
+                            operation: payload.name.to_string(),
+                            success: false,
+                            data: None,
+                        }
+                    }
+                };
                 self.print_message(message.as_ref());
                 None
             }
-            _ => None,
+            _ => {
+                return InvokeResult {
+                    operation: payload.name.to_string(),
+                    success: true,
+                    data: None,
+                }
+            }
+        };
+        InvokeResult {
+            operation: payload.name.to_string(),
+            success: true,
+            data: return_value,
         }
     }
 }
@@ -110,18 +140,29 @@ impl Agent for WorkflowAgent {
     }
 
     fn inject_dependencies(&self, context: &AxorContext) {
-        self.hello.inject(context.resolve::<HelloAgent>());
-        self.print.inject(context.resolve::<PrintAgent>());
+        self.hello.from_context(context);
+        self.print.from_context(context);
     }
 
-    fn call_operation(&self, payload: &crate::Payload) -> Option<Value> {
-        match payload.op_name_unchecked() {
+    fn call_operation(&self, payload: &crate::Payload) -> InvokeResult {
+        let return_value = match payload.op_name_unchecked() {
             "hello" => {
                 let res = self.run();
                 let json_data = serde_json::to_value(res).expect("Response Serialization Error");
                 Some(json_data)
             }
-            _ => None,
+            _ => {
+                return InvokeResult {
+                    operation: payload.name.to_string(),
+                    success: true,
+                    data: None,
+                }
+            }
+        };
+        InvokeResult {
+            operation: payload.name.to_string(),
+            success: true,
+            data: return_value,
         }
     }
 }

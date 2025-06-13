@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axor::{Agent, Inject, AxorContext, Payload, OperationDescriptor};
+use axor::{Agent, Inject, AxorContext, Payload, OperationDescriptor, InvokeResult};
 use axor_macros::{agent, agent_impl, operation};
 
 #[agent]
@@ -82,13 +82,21 @@ fn hello_with_macros() {
     context.init();
 
     // Direct invocation with type safety
+    // Direct invocation with type safety
+    let agent = context.resolve::<PrintAgent>();
+    let result = agent.print_message("Hello world");
+
+
     let agent = context.resolve::<WorkflowAgent>();
     let result = agent.run();
 
     assert_eq!(result, "Hello, world!");
 
-    println!();
-    // Payload invoke from runtimes web, wasm, cli...
+     let logger = context.get_service::<Arc<dyn Logger>>().unwrap();
+    logger.log("Do Log !");
+
+    // println!();
+    // // Payload invoke from runtimes web, wasm, cli...
     let payload = Payload::with_data("PrintAgent.print_message", &"test".to_string());
     let response = context.invoke(payload);
     println!("Response : {:?}", response);
@@ -99,6 +107,6 @@ fn hello_with_macros() {
     println!("Response : {:?}", response);
     assert!(response.success);
 
-    let logger = context.get_service::<Arc<dyn Logger>>().unwrap();
-    logger.log("Do Log !");
+   
 }
+
