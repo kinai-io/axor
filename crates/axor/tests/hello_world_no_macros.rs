@@ -1,19 +1,31 @@
+use std::sync::Arc;
+
+use axor::{Agent, AxorContext, Inject, OperationDescriptor, Payload};
 use serde_json::Value;
 
-use crate::{Agent, AxorContext, Inject, OperationDescriptor, Payload};
-
-struct HelloAgent;
+#[derive(Default)]
+struct HelloAgent {
+    pub logger: Inject<Arc<dyn Logger>>,
+    pub console_logger: Inject<ConsoleLogger>,
+}
 
 impl HelloAgent {
-    
     fn hello(&self) -> &'static str {
+        // Resolve by trait
+        let logger = self.logger.resolve();
+        let logger = logger.as_ref();
+        logger.log("HelloAgent Trait");
+
+        // Resolve by concrete type
+        let console = self.console_logger.resolve();
+        console.log("HelloAgent Console");
+
         println!("From Hello Agent:");
         "Hello, world!"
     }
 }
 
 impl Agent for HelloAgent {
-
     fn name(&self) -> &'static str {
         "HelloAgent"
     }
@@ -22,7 +34,11 @@ impl Agent for HelloAgent {
         vec![OperationDescriptor { name: "hello" }]
     }
 
-    fn inject_dependencies(&self, _context: &AxorContext) {}
+    fn inject_dependencies(&self, context: &AxorContext) {
+        self.logger.resolve_service(context);
+        self.console_logger.resolve_service(context);
+        // self.logger.inject(logger);
+    }
 
     fn call_operation(&self, payload: &crate::Payload) -> Option<Value> {
         match payload.op_name_unchecked() {
@@ -85,7 +101,6 @@ impl WorkflowAgent {
 }
 
 impl Agent for WorkflowAgent {
-
     fn name(&self) -> &'static str {
         "WorkflowAgent"
     }
@@ -111,13 +126,27 @@ impl Agent for WorkflowAgent {
     }
 }
 
+trait Logger: Send + Sync {
+    fn log(&self, message: &str);
+}
+
+struct ConsoleLogger;
+
+impl Logger for ConsoleLogger {
+    fn log(&self, message: &str) {
+        println!("[LOG] {}", message);
+    }
+}
+
 #[test]
 fn hello_world_no_macros() {
     let context = AxorContext::new();
 
-    context.register(HelloAgent);
+    context.register(HelloAgent::default());
     context.register(PrintAgent);
     context.register(WorkflowAgent::default());
+    context.register_service::<Arc<dyn Logger>>(Arc::new(ConsoleLogger));
+    context.register_service(ConsoleLogger);
 
     context.init();
 
@@ -139,4 +168,6 @@ fn hello_world_no_macros() {
     println!("Response : {:?}", response);
     assert!(response.success);
 
+    let logger = context.get_service::<Arc<dyn Logger>>().unwrap();
+    logger.log("Do Log !");
 }

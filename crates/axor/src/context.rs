@@ -1,16 +1,18 @@
 use crate::{Agent, InvokeResult, Payload};
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub struct AxorContext {
     agents: RwLock<HashMap<TypeId, Arc<dyn Agent>>>,
+    services: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
 }
 
 impl AxorContext {
     pub fn new() -> Self {
         Self {
             agents: RwLock::new(HashMap::new()),
+            services: RwLock::new(HashMap::new()),
         }
     }
 
@@ -23,6 +25,16 @@ impl AxorContext {
         let map = self.agents.read().unwrap();
         map.get(&TypeId::of::<T>())
             .and_then(|agent| agent.clone().downcast_arc::<T>().ok())
+    }
+
+    pub fn register_service<T: Send + Sync + 'static>(&self, service: T) {
+        let mut map = self.services.write().unwrap();
+        map.insert(TypeId::of::<T>(), Arc::new(service));
+    }
+
+    pub fn get_service<T: Send + Sync + 'static>(&self) -> Option<Arc<T>> {
+        let map = self.services.read().unwrap();
+        map.get(&TypeId::of::<T>())?.clone().downcast::<T>().ok()
     }
 
     pub fn resolve<T: Agent + 'static>(&self) -> Arc<T> {
