@@ -1,70 +1,108 @@
 # Axor
 
-**Axor** is a modular Rust framework for backend development, focused on structuring business logic through injectable, self-contained agents. It enables instant publication across multiple environments — from HTTP to CLI and desktop — without code duplication.
+**Axor** is a zero-overhead, modular framework for backend development in Rust, built around injectable, self-contained **agents**.
 
-## Vision
+It helps you structure business logic into typed units with automatic dependency injection and optional RPC-style invocation — all with zero runtime cost when called directly.
 
-> One core logic, exposed anywhere — without rewriting it.
+> _“Give me six hours to chop down a tree and I will spend the first four sharpening the axe.”_  
+> — Abraham Lincoln
 
-Axor empowers developers to build backends around **typed agents**, **self-publishing operations**, and a **composable runtime model**. With minimal boilerplate and full testability, Axor helps you scale your app — not your complexity.
+Axor is your sharpened axe: focus on business logic, not boilerplate.
 
-## Core Features
+✅ Clean design  
+🧪 No ceremony  
+🚀 Zero-cost direct calls (fully static)  
+🌐 Optional RPC interface via `Payload`  
+🔌 Injectable services, no trait or macro required
 
-- ✅ Typed dependency injection with a central `AxorContext`
-- ✅ Composable, self-contained business agents (`#[agent]`)
-- ✅ Auto-registered operations (`#[operation]`)
-- ✅ HTTP-ready with `axor-web`, powered by Axum
-- ✅ Multi-runtime support (web, CLI, Tauri...)
-- ✅ Testable without a server, thanks to agent isolation
+Agents are **exposed** to the runtime. Services, in contrast, can be injected and shared **without being publicly invocable** — keeping your context clean and focused.
 
-## Crates
+---
+
+## ✨ Features
+
+- ✅ **Strongly-typed agents** with `#[agent]` and `#[agent_impl]`
+- 🔌 **Service or agent injection** via `Inject<T>`
+- ⚙️ **Auto-published operations** using `#[operation]`
+- 🧪 **Logic testable** without network/server
+- 🌐 **Unified runtime**: one codebase for web, CLI, desktop...
+- 🚀 **Zero overhead** when invoking agents directly
+
+> Just `use axor::prelude::*` to get started.
+
+---
+
+## 🧩 Crates
 
 | Crate        | Role                                                   |
 |--------------|--------------------------------------------------------|
-| `axor`       | Core framework: agent system, DI, operations           |
-| `axor-web`   | HTTP runtime based on Axum                            |
-| `axor-tauri` | (coming soon) Tauri runtime for desktop apps          |
-| `axor-cli`   | (coming soon) CLI runtime: turn agents into commands  |
+| `axor`       | Core: agents, DI, RPC operations, context              |
+| `axor-web`   | (coming soon) HTTP runtime powered by Axum                          |
+| `axor-tauri` | (coming soon) Desktop runtime for Tauri apps          |
+| `axor-cli`   | (coming soon) CLI runtime: map agents to commands     |
 | `axor-doc`   | (coming soon) Auto-generated docs + OpenAPI manifest  |
 
-## Quick Example
+---
+
+## 🚀 Quick Start
 
 ```rust
-#[agent]
-pub struct UserService;
+use axor::prelude::*;
 
-#[operation(GET, "/user/:id")]
-fn get_user(&self, id: String) -> Result<User> {
-    // Your business logic here
+#[agent]
+struct HelloAgent;
+
+#[agent_impl]
+impl HelloAgent {
+    #[operation]
+    fn hello(&self) -> &'static str {
+        "Hello, world!"
+    }
 }
 
 fn main() {
     let mut context = AxorContext::default();
-    context.register(UserService);
-
-    axor_web::serve(context);
+    context.register(HelloAgent);
+    
+    axor_web::serve(context); // Serve your agents via HTTP (if axor-web is used)
 }
 ````
 
-## Comparison
+---
 
-| Framework       | Typed DI | Auto Routing | Auto Op Export  | Web Ready | Modular |
-| --------------- | -------- | ------------ | --------------- | --------- | ------- |
-| **Axor**        | ✅        | ✅            | ✅               | ✅         | ✅       |
-| Axum            | ❌        | ❌            | Handler-based   | ✅         | ✅       |
-| Actix Web       | ❌        | ❌            | Trait-based     | ✅         | ✅       |
-| Shuttle Service | ✅        | ❌            | ❌               | ✅         | ❌       |
-| async-graphql   | ✅        | ✅ (GQL)      | ✅ (`#[Object]`) | ❌         | ✅       |
+## 📋 Comparison
 
-## Roadmap
+| Framework       | Typed DI | Auto Routing | Auto Ops | Web Ready | Modular |
+| --------------- | -------- | ------------ | -------- | --------- | ------- |
+| **Axor**        | ✅        | ✅            | ✅        | ✅         | ✅       |
+| Axum            | ❌        | ❌            | Handlers | ✅         | ✅       |
+| Actix Web       | ❌        | ❌            | Traits   | ✅         | ✅       |
 
-* ✅ HTTP runtime via `axor-web`
-* ⏳ Tauri runtime (`axor-tauri`)
+---
+
+## 📌 Roadmap
+
+* ⏳ HTTP support via `axor-web`
+* ⏳ Tauri support (`axor-tauri`)
 * ⏳ CLI runtime (`axor-cli`)
-* ⏳ Documentation & OpenAPI via `axor-doc`
-* ⏳ Built-in auth, metrics, and async support as standard agents
+* ⏳ Documentation + OpenAPI via `axor-doc`
+* ⏳ Built-in agents: auth, metrics, async tasks
 
-## License
+---
 
-MIT © Axor Contributors
+## ⚠️ Limitations
 
+* Operations must return `Serialize` types and accept at most **one input** (must be `Deserialize`)
+* No native reflection: macros are required for agent/operation declaration
+* No dynamic documentation yet (coming via `axor-doc`)
+* Multithreaded agents require proper `Arc` usage
+
+---
+
+## 📄 License
+
+MIT © [Axor Contributors](https://github.com/kinai-io/axor)
+
+---
+
+> 💬 Feedback or ideas? [Open an issue](https://github.com/kinai-io/axor/axor/issues) or start a discussion — Axor is built for and with developers.
