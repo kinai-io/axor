@@ -84,7 +84,7 @@ fn hello_with_macros() {
     // Direct invocation with type safety
     // Direct invocation with type safety
     let agent = context.resolve::<PrintAgent>();
-    let result = agent.print_message("Hello world");
+    let _ = agent.print_message("Hello world");
 
 
     let agent = context.resolve::<WorkflowAgent>();
