@@ -1,6 +1,6 @@
 [package]
 name = "axor"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Core of the Axor framework: agent-based business logic with typed operations and injection."
 license = "MIT"
@@ -15,8 +15,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 async-trait = "0.1"
-axor-macros = { path = "../axor-macros" }
 downcast-rs = "2.0.1"
+
+# axor-macros = { path = "../axor-macros" }
+axor-macros = "0.1"
 
 [features]
 default = []
