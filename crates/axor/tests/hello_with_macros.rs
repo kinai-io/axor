@@ -111,6 +111,6 @@ fn hello_with_macros() {
     assert!(response.success);
 
     let manifest = context.manifest();
-    let manifest_json = serde_json::to_string(&manifest).unwrap();
+    let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
     println!("{}", manifest_json);
 }
